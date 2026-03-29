@@ -1,11 +1,10 @@
 ---
 name: supabase-auth-emails
-description: Use when customizing Supabase Auth emails with React Email components. Covers all 13 Supabase Auth email types (confirmation, invite, magic link, recovery, email change, reauthentication, and 7 notification types), the shared layout wrapper, Tailwind styling for email, the build-to-HTML pipeline with Go template variables, and Supabase config.toml integration. Use this skill whenever the user mentions Supabase auth emails, custom email templates for Supabase, password reset emails, magic link emails, sign-up confirmation emails, MFA notifications, identity linked/unlinked notifications, or any work involving rendering React Email to static HTML for Supabase's template system. Also applies when adding new Supabase auth email types or connecting React Email output to Supabase local dev.
+description: Use when customizing Supabase Auth emails with React Email components. Covers all Supabase Auth email types — 5 auth action templates (confirmation, invite, magic link, recovery, email change) and 7 notification templates (password changed, email changed, phone changed, identity linked/unlinked, MFA enrolled/unenrolled), the shared layout wrapper, Tailwind styling for email, the build-to-HTML pipeline with Go template variables, and Supabase config.toml integration. Use this skill whenever the user mentions Supabase auth emails, custom email templates for Supabase, password reset emails, magic link emails, sign-up confirmation emails, MFA notification emails, or any work involving rendering React Email to static HTML for Supabase's template system. Also applies when adding new Supabase auth email types or connecting React Email output to Supabase local dev.
 license: MIT
 metadata:
-  author: wassimbenr
-  version: "1.0.0"
-  organisation: Tanfust
+  author: Wassim
+  version: "1.1.0"
 ---
 
 # Supabase Auth Email Templates with React Email
@@ -33,7 +32,7 @@ You also need a Supabase project initialized (`supabase init`) with a `supabase/
 
 ## How It Works
 
-Supabase Auth sends emails for auth actions (sign-up confirmation, password reset, etc.) and security notifications (password changed, MFA added, etc.). By default these use plain built-in templates. To customize them:
+Supabase Auth sends emails for auth actions (sign-up confirmation, password reset, etc.) and security notifications (password changed, MFA enrolled, etc.). By default these use plain built-in templates. To customize them:
 
 1. Write React Email components in `emails/` with typed props
 2. A build script renders each component to static HTML, injecting Supabase's Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`, etc.) as prop values
@@ -44,9 +43,11 @@ This gives you the React Email dev preview for design iteration, while Supabase 
 
 ## Supabase Auth Email Types
 
-Supabase supports 13 customizable email types across two categories:
+Supabase supports 12 customizable email types via config.toml, across two categories:
 
-### Auth Action Emails (6) — user clicks a link or enters a code
+### Auth Action Templates (5) — configured via `[auth.email.template.<type>]`
+
+These emails contain a link the user must click to complete an action.
 
 | Supabase Type | Purpose | Key Variable |
 | --- | --- | --- |
@@ -55,9 +56,12 @@ Supabase supports 13 customizable email types across two categories:
 | `magic_link` | Passwordless sign-in link | `{{ .ConfirmationURL }}` |
 | `email_change` | Verify new email after change | `{{ .ConfirmationURL }}` |
 | `recovery` | Password reset link | `{{ .ConfirmationURL }}` |
-| `reauthentication` | Confirm before sensitive action | `{{ .ConfirmationURL }}` + `{{ .Token }}` |
 
-### Notification Emails (7) — informational, no action needed
+> **Note on reauthentication**: Supabase sends a reauthentication OTP email internally, but there is no `[auth.email.template.reauthentication]` config key. You can still create a React Email component for it (useful for preview/documentation), but it cannot be customized via config.toml.
+
+### Notification Templates (7) — configured via `[auth.email.notification.<type>]`
+
+These are informational security alerts — no action link needed.
 
 | Supabase Type | Purpose |
 | --- | --- |
@@ -66,8 +70,8 @@ Supabase supports 13 customizable email types across two categories:
 | `phone_changed` | Phone number was changed |
 | `identity_linked` | New identity provider linked |
 | `identity_unlinked` | Identity provider removed |
-| `mfa_added` | MFA method added |
-| `mfa_removed` | MFA method removed |
+| `mfa_factor_enrolled` | MFA method added |
+| `mfa_factor_unenrolled` | MFA method removed |
 
 ## Recommended File Structure
 
@@ -80,14 +84,14 @@ emails/
   magic-link.tsx                  # magic_link
   change-email.tsx                # email_change
   reset-password.tsx              # recovery
-  reauthentication.tsx            # reauthentication
+  reauthentication.tsx            # (React Email preview only — no config.toml key)
   notify-password-changed.tsx     # password_changed
   notify-email-changed.tsx        # email_changed
   notify-phone-changed.tsx        # phone_changed
   notify-identity-linked.tsx      # identity_linked
   notify-identity-unlinked.tsx    # identity_unlinked
-  notify-mfa-added.tsx            # mfa_added
-  notify-mfa-removed.tsx          # mfa_removed
+  notify-mfa-added.tsx            # mfa_factor_enrolled
+  notify-mfa-removed.tsx          # mfa_factor_unenrolled
 
 scripts/
   build-email-templates.ts        # Renders React Email → static HTML
@@ -216,8 +220,6 @@ ConfirmSignUp.PreviewProps = {
 } satisfies ConfirmSignUpProps;
 ```
 
-The `reauthentication` template is similar but also displays an OTP code via the `token` prop, shown in a styled mono-spaced block as an alternative to the button.
-
 ### Notification Email Pattern
 
 Notification emails are simpler — no CTA button, just an explanation and a security callout linking to the password reset page.
@@ -275,7 +277,7 @@ For full component reference and styling details, use the `react-email` skill.
 
 ## Supabase Go Template Variables
 
-Supabase's template engine uses Go template syntax. When building the static HTML, pass these as literal string prop values:
+When the build script renders templates, it passes Go template variable strings as literal prop values:
 
 | React Prop | Go Template Variable | Description |
 | --- | --- | --- |
@@ -283,8 +285,10 @@ Supabase's template engine uses Go template syntax. When building the static HTM
 | `token` | `{{ .Token }}` | OTP code (used in reauthentication) |
 | `email` | `{{ .Email }}` | User's email address |
 | — | `{{ .SiteURL }}` | Site URL from Supabase config (useful in footers) |
-| — | `{{ .TokenHash }}` | Token hash (alternative to full URL) |
+| — | `{{ .TokenHash }}` | Token hash for PKCE flows |
 | — | `{{ .RedirectTo }}` | Redirect URL after action |
+
+See `references/TEMPLATES.md` for the complete variable list per template, including notification-specific variables (`{{ .OldEmail }}`, `{{ .Provider }}`, `{{ .FactorType }}`, etc.).
 
 ## Build Script
 
@@ -310,7 +314,7 @@ const SB = {
 
 const templates = [
   { name: "confirm-sign-up", element: ConfirmSignUp({ confirmationUrl: SB.confirmationUrl, email: SB.email }) },
-  // ... other templates
+  // ... other templates with their respective Go template variables
 ];
 
 async function build() {
@@ -336,9 +340,9 @@ Add a package.json script to run it:
 
 ## Supabase config.toml Integration
 
-Wire each template in `supabase/config.toml`:
+Wire each template in `supabase/config.toml`. Only these keys are supported by the Supabase CLI:
 
-### Auth action templates
+### Auth action templates — `[auth.email.template.<type>]`
 
 ```toml
 [auth.email.template.confirmation]
@@ -360,56 +364,56 @@ content_path = "./supabase/templates/change-email.html"
 [auth.email.template.recovery]
 subject = "Reset your password"
 content_path = "./supabase/templates/reset-password.html"
-
-[auth.email.template.reauthentication]
-subject = "Security verification"
-content_path = "./supabase/templates/reauthentication.html"
 ```
 
-### Notification templates
+> There is no `[auth.email.template.reauthentication]` — Supabase handles that email internally.
+
+### Notification templates — `[auth.email.notification.<type>]`
+
+> **Path difference**: Notification `content_path` values use `./templates/` (relative to the `supabase/` directory), while auth action templates use `./supabase/templates/` (relative to project root). This matches Supabase's own conventions.
 
 ```toml
 [auth.email.notification.password_changed]
 enabled = true
 subject = "Your password was changed"
-content_path = "./supabase/templates/notify-password-changed.html"
+content_path = "./templates/notify-password-changed.html"
 
 [auth.email.notification.email_changed]
 enabled = true
 subject = "Your email was changed"
-content_path = "./supabase/templates/notify-email-changed.html"
+content_path = "./templates/notify-email-changed.html"
 
 [auth.email.notification.phone_changed]
 enabled = true
 subject = "Your phone number was changed"
-content_path = "./supabase/templates/notify-phone-changed.html"
+content_path = "./templates/notify-phone-changed.html"
 
 [auth.email.notification.identity_linked]
 enabled = true
 subject = "New identity linked to your account"
-content_path = "./supabase/templates/notify-identity-linked.html"
+content_path = "./templates/notify-identity-linked.html"
 
 [auth.email.notification.identity_unlinked]
 enabled = true
 subject = "Identity unlinked from your account"
-content_path = "./supabase/templates/notify-identity-unlinked.html"
+content_path = "./templates/notify-identity-unlinked.html"
 
-[auth.email.notification.mfa_added]
+[auth.email.notification.mfa_factor_enrolled]
 enabled = true
 subject = "MFA method added to your account"
-content_path = "./supabase/templates/notify-mfa-added.html"
+content_path = "./templates/notify-mfa-added.html"
 
-[auth.email.notification.mfa_removed]
+[auth.email.notification.mfa_factor_unenrolled]
 enabled = true
 subject = "MFA method removed from your account"
-content_path = "./supabase/templates/notify-mfa-removed.html"
+content_path = "./templates/notify-mfa-removed.html"
 ```
 
 ## Adding a New Template
 
 1. Create `emails/my-template.tsx` following the auth action or notification pattern
 2. Import it in `scripts/build-email-templates.ts` and add to the `templates` array with the correct Go template variable mapping
-3. Add the corresponding `[auth.email.template.*]` or `[auth.email.notification.*]` block in `supabase/config.toml`
+3. Add the corresponding `[auth.email.template.*]` or `[auth.email.notification.*]` block in `supabase/config.toml` (only if the type is supported — check the Supabase CLI config docs)
 4. Run the build script to generate the HTML
 5. Preview with the React Email dev server
 6. Restart local Supabase for it to pick up the new template

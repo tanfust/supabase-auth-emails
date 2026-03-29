@@ -4,7 +4,7 @@ An agent skill for customizing all Supabase Auth emails using React Email compon
 
 ## What It Does
 
-Guides you through creating custom email templates for every Supabase Auth email type — sign-up confirmations, magic links, password resets, invitations, reauthentication, and 7 security notification types. Templates are built as React Email components with Tailwind CSS, then rendered to static HTML with Supabase's Go template variables for local and production use.
+Guides you through creating custom email templates for every Supabase Auth email type — sign-up confirmations, magic links, password resets, invitations, and 7 security notification types. Templates are built as React Email components with Tailwind CSS, then rendered to static HTML with Supabase's Go template variables for local and production use.
 
 ## Structure
 
@@ -19,17 +19,18 @@ supabase-auth-emails/
 ## Covers
 
 - Shared email layout wrapper component
-- 6 auth action email patterns (with CTA buttons)
+- 5 auth action email patterns (with CTA buttons)
 - 7 notification email patterns (informational)
 - Tailwind CSS styling rules for email clients
 - Supabase Go template variable mapping
-- Build script (React Email → static HTML)
+- Build script (React Email to static HTML)
 - `supabase/config.toml` integration
+- PKCE flow for server-side auth frameworks
 - Adding new email types
 
 ## Prerequisites
 
-- React Email (`@react-email/components`) — see the `react-email` skill or https://react.email/docs/getting-started/manual-setup
+- React Email (`@react-email/components`) — see the `react-email` skill or <https://react.email/docs/getting-started/manual-setup>
 - Supabase project with `supabase/config.toml`
 - TypeScript + tsx for the build script
 
