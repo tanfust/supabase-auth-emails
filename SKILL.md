@@ -4,14 +4,48 @@ description: Use when customizing Supabase Auth emails with React Email componen
 license: MIT
 metadata:
   author: Wassim
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Supabase Auth Email Templates with React Email
 
 Customize all Supabase Auth emails using React Email components, rendered to static HTML for Supabase's Go-based template system. This skill works alongside the `react-email` skill — use that skill for general React Email component usage, and this one specifically for the Supabase Auth integration layer.
 
-Read `references/TEMPLATES.md` for the full per-template variable reference, PKCE flow documentation, and complete Go template variable listing.
+Read `references/TEMPLATES.md` for the full per-template variable reference and complete Go template variable listing.
+
+## Theme & Branding Discovery
+
+**Before generating any email template**, read the user's project to extract their existing theme and branding. Emails must visually match the app — never use generic hardcoded colors.
+
+### 1. Read CSS / theme files
+
+Search for `globals.css`, `global.css`, `tailwind.config.ts`, `tailwind.config.js`, or any theme token files. Extract:
+
+- **CSS custom properties**: `--primary`, `--background`, `--foreground`, `--muted`, `--muted-foreground`, `--border`, `--accent`, and font families
+- **Tailwind config**: `theme.extend.colors`, `theme.extend.fontFamily`, and any custom color palette
+
+### 2. Read site config files
+
+Search for `config/site.ts`, `lib/config.ts`, `src/config.ts`, or similar. Extract:
+
+- App name, tagline, support email, base URL
+- Logo URL if available
+- Fall back to `package.json` `name` field if no site config exists
+
+### 3. Map discovered values to email styles
+
+| Theme Token | Maps To |
+| --- | --- |
+| `primary` | CTA button background, link color |
+| `background` / `foreground` | Email body background, heading & body text color |
+| `muted` / `muted-foreground` | Footer text, disclaimer text |
+| `border` | HR dividers |
+| Font family | `font-sans` override or inline `fontFamily` style |
+| App name / support email | Layout header, footer |
+
+### 4. Fallback
+
+If no theme files exist in the project, use the generic defaults shown in the examples below.
 
 ## Prerequisites
 
@@ -107,11 +141,15 @@ The `_components/` prefix is a React Email convention — the preview server ign
 
 Create a wrapper that provides consistent structure across all emails. Every template should use it.
 
+**Always read the user's project first.** Import the app name, URL, and support email from the project's site config. For colors, read `globals.css` and `tailwind.config` to extract actual theme colors. See [Theme & Branding Discovery](#theme--branding-discovery).
+
 ```tsx
 import {
   Body, Container, Head, Heading, Hr, Html, Link,
   Preview, Section, Tailwind, Text, pixelBasedPreset,
 } from "@react-email/components";
+// Import from the project's site config — adapt the path to the actual project
+// import { siteConfig } from "@/config/site";
 
 interface EmailLayoutProps {
   previewText: string;
@@ -124,18 +162,22 @@ export default function EmailLayout({ previewText, children }: EmailLayoutProps)
       <Tailwind config={{ presets: [pixelBasedPreset] }}>
         <Head />
         <Preview>{previewText}</Preview>
+        {/* bg-gray-100 → replace with project's background color */}
         <Body className="bg-gray-100 font-sans py-10">
           <Container className="mx-auto max-w-[560px] bg-white p-10">
-            {/* App name / logo header */}
+            {/* Replace with siteConfig.name or project's app name */}
+            {/* text-gray-900 → replace with project's foreground color */}
             <Heading className="text-2xl font-bold text-gray-900 text-center m-0">
               Your App Name
             </Heading>
+            {/* border-gray-200 → replace with project's border color */}
             <Hr className="border-solid border-gray-200 my-6" />
 
             {children}
 
             <Hr className="border-solid border-gray-200 my-6" />
-            {/* Footer */}
+            {/* Footer — replace with siteConfig values */}
+            {/* text-gray-500 → replace with project's muted-foreground color */}
             <Section className="text-center">
               <Text className="text-xs text-gray-500 m-0 mb-1">
                 Your App Name — Your tagline here.
@@ -155,9 +197,7 @@ export default function EmailLayout({ previewText, children }: EmailLayoutProps)
 }
 ```
 
-Adapt the header and footer to your project. If you have a site config (e.g., `config/site.ts`), import the app name, URL, and support email from there instead of hardcoding.
-
-For more flexibility, make branding configurable via props:
+When no centralized site config exists, make branding configurable via props:
 
 ```tsx
 interface EmailLayoutProps {
@@ -170,13 +210,13 @@ interface EmailLayoutProps {
 }
 ```
 
-This lets you pass branding from a central config or customize per-template.
-
 ## Template Patterns
 
 ### Auth Action Email Pattern
 
 Auth action emails include a CTA button linking to a Supabase confirmation URL, plus a raw URL fallback for email clients that strip buttons.
+
+Replace the color classes below with the project's actual theme colors (see [Theme & Branding Discovery](#theme--branding-discovery)).
 
 ```tsx
 import { Button, Heading, Section, Text } from "@react-email/components";
@@ -190,13 +230,16 @@ interface ConfirmSignUpProps {
 export default function ConfirmSignUp({ confirmationUrl, email }: ConfirmSignUpProps) {
   return (
     <EmailLayout previewText="Confirm your account">
+      {/* text-gray-900 → foreground color */}
       <Heading as="h2" className="text-xl font-bold text-gray-900 m-0 mb-4">
         Confirm your email
       </Heading>
+      {/* text-gray-700 → muted-foreground color */}
       <Text className="text-sm leading-6 text-gray-700 my-4">
         Please confirm your email address ({email}) by clicking the button below.
       </Text>
       <Section className="text-center my-8">
+        {/* bg-gray-900 → primary color */}
         <Button
           href={confirmationUrl}
           className="box-border bg-gray-900 text-white px-6 py-3 text-sm font-medium no-underline"
@@ -204,6 +247,7 @@ export default function ConfirmSignUp({ confirmationUrl, email }: ConfirmSignUpP
           Confirm Email
         </Button>
       </Section>
+      {/* text-gray-500 → muted color */}
       <Text className="text-xs text-gray-500 my-4">
         If you didn't create an account, you can safely ignore this email.
       </Text>
@@ -215,7 +259,7 @@ export default function ConfirmSignUp({ confirmationUrl, email }: ConfirmSignUpP
 }
 
 ConfirmSignUp.PreviewProps = {
-  confirmationUrl: "https://yourapp.com/auth/confirm?token_hash=abc123&type=signup",
+  confirmationUrl: "https://yourapp.com/auth/confirm?token=abc123",
   email: "user@example.com",
 } satisfies ConfirmSignUpProps;
 ```
@@ -223,6 +267,8 @@ ConfirmSignUp.PreviewProps = {
 ### Notification Email Pattern
 
 Notification emails are simpler — no CTA button, just an explanation and a security callout linking to the password reset page.
+
+Replace the color classes and URL below with the project's actual theme colors and site URL (see [Theme & Branding Discovery](#theme--branding-discovery)).
 
 ```tsx
 import { Heading, Link, Text } from "@react-email/components";
@@ -235,9 +281,11 @@ interface NotifyPasswordChangedProps {
 export default function NotifyPasswordChanged({ email }: NotifyPasswordChangedProps) {
   return (
     <EmailLayout previewText="Password change notification">
+      {/* text-gray-900 → foreground color */}
       <Heading as="h2" className="text-xl font-bold text-gray-900 m-0 mb-4">
         Your password was changed
       </Heading>
+      {/* text-gray-700 → muted-foreground color */}
       <Text className="text-sm leading-6 text-gray-700 my-4">
         The password for your account ({email}) was recently changed.
       </Text>
@@ -246,6 +294,7 @@ export default function NotifyPasswordChanged({ email }: NotifyPasswordChangedPr
       </Text>
       <Text className="text-sm leading-6 text-gray-700 my-4">
         If you did not make this change, secure your account immediately by{" "}
+        {/* Use the project's site URL — e.g., from siteConfig.url */}
         <Link
           href="https://yourapp.com/auth/forgot-password"
           className="text-gray-900 underline font-medium"
@@ -285,8 +334,8 @@ When the build script renders templates, it passes Go template variable strings 
 | `token` | `{{ .Token }}` | OTP code (used in reauthentication) |
 | `email` | `{{ .Email }}` | User's email address |
 | — | `{{ .SiteURL }}` | Site URL from Supabase config (useful in footers) |
-| — | `{{ .TokenHash }}` | Token hash for PKCE flows |
-| — | `{{ .RedirectTo }}` | Redirect URL after action |
+
+**Always use `{{ .ConfirmationURL }}`** for auth action template links. Supabase generates the correct URL regardless of your auth flow (including PKCE). Do not construct URLs manually using token hashes.
 
 See `references/TEMPLATES.md` for the complete variable list per template, including notification-specific variables (`{{ .OldEmail }}`, `{{ .Provider }}`, `{{ .FactorType }}`, etc.).
 

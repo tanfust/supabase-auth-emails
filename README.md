@@ -13,11 +13,12 @@ supabase-auth-emails/
 ├── SKILL.md              # Main skill — patterns, config, build pipeline
 ├── README.md             # This file
 └── references/
-    └── TEMPLATES.md      # Per-template variable reference, PKCE flow docs
+    └── TEMPLATES.md      # Per-template variable reference
 ```
 
 ## Covers
 
+- Project theme discovery (colors, fonts, brand config) for email styling
 - Shared email layout wrapper component
 - 5 auth action email patterns (with CTA buttons)
 - 7 notification email patterns (informational)
@@ -25,7 +26,6 @@ supabase-auth-emails/
 - Supabase Go template variable mapping
 - Build script (React Email to static HTML)
 - `supabase/config.toml` integration
-- PKCE flow for server-side auth frameworks
 - Adding new email types
 
 ## Prerequisites
